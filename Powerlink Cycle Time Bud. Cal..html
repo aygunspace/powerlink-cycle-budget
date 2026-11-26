@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POWERLINK Cycle Time Budget Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a20; --panel2:#1d2129; --ink:#e8eaed; --muted:#8b93a1;
+    --line:#2a2f39; --accent:#4ade80; --blue:#60a5fa; --amber:#fbbf24; --red:#f87171;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:15px;line-height:1.55;
+       -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1200px;margin:0 auto;padding:28px 20px 64px}
+
+  header{border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:24px}
+  h1{font-size:24px;font-weight:600;margin:10px 0 8px;letter-spacing:-.015em}
+  .sub{color:var(--muted);font-size:14px;margin:0;max-width:76ch}
+  .tag{display:inline-block;font-size:11px;font-family:var(--mono);text-transform:uppercase;
+       letter-spacing:.08em;color:var(--accent);border:1px solid rgba(74,222,128,.3);
+       background:rgba(74,222,128,.08);padding:3px 9px;border-radius:3px}
+
+  .grid{display:grid;grid-template-columns:330px 1fr;gap:20px;align-items:start}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:18px}
+  .card h2{font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.09em;
+           color:var(--muted);margin:0 0 14px;font-weight:600}
+
+  label{display:block;margin-bottom:12px}
+  label .lb{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:4px}
+  label .u{color:var(--muted);font-family:var(--mono);font-size:11px}
+  input[type=number],select{width:100%;padding:7px 9px;border:1px solid var(--line);
+    border-radius:5px;font-family:var(--mono);font-size:13px;background:var(--panel2);color:var(--ink)}
+  input:focus,select:focus{outline:1px solid var(--accent);border-color:var(--accent)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .divider{height:1px;background:var(--line);margin:16px -18px}
+  .chk{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px}
+  .chk input{width:auto;accent-color:var(--accent)}
+
+  .verdict{border-radius:9px;padding:16px 18px;margin-bottom:18px;border:1px solid}
+  .verdict.pass{background:rgba(74,222,128,.07);border-color:rgba(74,222,128,.35)}
+  .verdict.fail{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.35)}
+  .verdict .big{font-size:27px;font-family:var(--mono);font-weight:500;letter-spacing:-.02em}
+  .verdict .msg{font-size:13.5px;color:var(--muted);margin-top:5px}
+  .verdict.pass .big{color:var(--accent)} .verdict.fail .big{color:var(--red)}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;
+        background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:18px}
+  .kpi{background:var(--panel);padding:13px 15px}
+  .kpi .k{font-size:10.5px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  .kpi .v{font-size:19px;font-family:var(--mono);font-weight:500;margin-top:3px}
+  .kpi .v small{font-size:11.5px;color:var(--muted);font-weight:400}
+
+  canvas{width:100%;display:block}
+  #bar{height:58px} #cmp{height:150px}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  th{font-size:10.5px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;
+     color:var(--muted);font-weight:600}
+  td.num{font-family:var(--mono)}
+  tr:last-child td{border-bottom:none}
+  tr.tot td{font-weight:600;border-top:1px solid var(--line)}
+  .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;vertical-align:baseline}
+
+  .note{font-size:13px;color:var(--muted);margin-top:12px}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:-6px;margin-bottom:12px}
+
+  details{margin-top:18px;border:1px solid var(--line);border-radius:9px;background:var(--panel)}
+  summary{padding:14px 18px;cursor:pointer;font-size:13px;font-weight:500;list-style:none;color:var(--ink)}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:'▸';display:inline-block;margin-right:8px;color:var(--muted);transition:transform .15s}
+  details[open] summary::before{transform:rotate(90deg)}
+  details .body{padding:0 18px 18px;font-size:13.5px;color:#aab2c0}
+  details .body p{margin:10px 0}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--panel2);
+       padding:1px 5px;border-radius:3px;color:var(--blue)}
+
+  button{font-family:inherit;font-size:13px;padding:8px 14px;border-radius:6px;
+         border:1px solid var(--line);background:var(--panel2);cursor:pointer;color:var(--ink)}
+  button:hover{border-color:var(--muted)}
+  button.primary{background:var(--accent);color:#0f1115;border-color:var(--accent);font-weight:500}
+  .stack{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+  footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);
+         font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="tag">Independent open-source tool</span>
+  <h1>POWERLINK Cycle Time Budget Calculator</h1>
+  <p class="sub">
+    Work out the minimum achievable POWERLINK cycle time for a given network — node count,
+    process data per node, infrastructure latency, multiplexing and the asynchronous reservation —
+    and see which part of the budget is actually binding. Built from the published cycle structure
+    and standard IEEE&nbsp;802.3 frame timing.
+  </p>
+</header>
+
+<div class="grid">
+  <!-- ── INPUTS ── -->
+  <div>
+    <div class="card">
+      <h2>Network</h2>
+      <label><span class="lb">Target cycle time <span class="u">µs</span></span>
+        <input type="number" id="target" value="400" min="50" step="50"></label>
+      <div class="row">
+        <label><span class="lb">Nodes polled every cycle <span class="u">CN</span></span>
+          <input type="number" id="nCont" value="20" min="0" step="1"></label>
+        <label><span class="lb">Multiplexed nodes <span class="u">CN</span></span>
+          <input type="number" id="nMux" value="0" min="0" step="1"></label>
+      </div>
+      <label><span class="lb">Multiplexing spread <span class="u">cycles</span></span>
+        <input type="number" id="muxCycles" value="4" min="1" step="1"></label>
+      <div class="hint">Low-priority nodes share a slot across this many cycles.</div>
+      <div class="row">
+        <label><span class="lb">PReq data <span class="u">bytes</span></span>
+          <input type="number" id="tx" value="16" min="0" step="1"></label>
+        <label><span class="lb">PRes data <span class="u">bytes</span></span>
+          <input type="number" id="rx" value="16" min="0" step="1"></label>
+      </div>
+      <div class="chk"><input type="checkbox" id="prc">
+        <label for="prc" style="margin:0">Poll Response Chaining</label></div>
+      <div class="hint">Chained PRes, no individual PReq — for many nodes with few bytes.</div>
+
+      <div class="divider"></div>
+      <h2>Infrastructure</h2>
+      <label><span class="lb">Device type <span class="u">per hop</span></span>
+        <select id="infra">
+          <option value="0.5">Hub / repeater — 0.5 µs</option>
+          <option value="5">Cut-through switch — 5 µs</option>
+          <option value="10">Store-and-forward switch — 10 µs</option>
+          <option value="custom">Custom…</option>
+        </select></label>
+      <label id="customWrap" style="display:none">
+        <span class="lb">Custom delay <span class="u">µs</span></span>
+        <input type="number" id="custom" value="2" min="0" step="0.1"></label>
+      <label><span class="lb">Hops on longest path <span class="u">count</span></span>
+        <input type="number" id="hops" value="2" min="0" step="1"></label>
+      <label><span class="lb">Node turnaround <span class="u">µs</span></span>
+        <input type="number" id="turn" value="1" min="0" step="0.5"></label>
+      <div class="hint">Device-dependent PReq→PRes response time. Check your hardware.</div>
+
+      <div class="divider"></div>
+      <h2>Asynchronous phase</h2>
+      <label><span class="lb">ASnd frame size <span class="u">bytes</span></span>
+        <input type="number" id="async" value="300" min="0" step="50"></label>
+      <label><span class="lb">Idle / safety margin <span class="u">%</span></span>
+        <input type="number" id="margin" value="10" min="0" step="5"></label>
+
+      <div class="stack">
+        <button class="primary" id="copy">Copy budget</button>
+        <button id="reset">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RESULTS ── -->
+  <div>
+    <div id="verdict" class="verdict"></div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <h2>Cycle composition</h2>
+      <canvas id="bar"></canvas>
+      <table id="brk" style="margin-top:10px"></table>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <h2>What the infrastructure costs you</h2>
+      <canvas id="cmp"></canvas>
+      <div class="note" id="cmpNote"></div>
+    </div>
+
+    <details>
+      <summary>Method, assumptions and limitations — read before quoting a number</summary>
+      <div class="body">
+        <p><strong>Frame timing.</strong> Standard Fast Ethernet at 100 Mbit/s, so 0.08 µs per byte.
+        Each frame on the wire costs <code>38 + payload</code> bytes: 7 preamble + 1 SFD + 14 MAC
+        header + 4 FCS + 12 inter-frame gap. The POWERLINK header is taken as 24 bytes inside the
+        Ethernet payload, and the payload is floored at the 46-byte Ethernet minimum — which is why
+        a frame carrying no process data still costs 6.72 µs.</p>
+
+        <p><strong>Cycle structure.</strong> SoC, then the isochronous phase (PReq to each polled CN
+        and its PRes back), then SoA opening the asynchronous phase and one ASnd frame, then idle
+        until the next SoC. Multiplexed nodes are counted as
+        <code>ceil(n / spread)</code> polled per cycle. With Poll Response Chaining the individual
+        PReq per chained node is dropped and only the chained PRes is counted.</p>
+
+        <p><strong>Infrastructure delay.</strong> Each frame is charged
+        <code>hop count × per-device delay</code>. The defaults follow the figures used in the
+        POWERLINK specification's own performance examples: 0.5 µs for a hub, around 5 µs for a
+        cut-through switch and upwards of 10 µs for store-and-forward. This is the single most
+        commonly underestimated term in a POWERLINK budget — see the comparison above.</p>
+
+        <p><strong>Node turnaround is hardware-dependent and is NOT taken from any vendor's data
+        sheet.</strong> It is a parameter you must set from your own devices. The default of 1 µs is
+        a placeholder for sanity-checking, not a specification. Everything downstream of it inherits
+        its error.</p>
+
+        <p><strong>What this is not.</strong> A first-order budget for feasibility screening and for
+        reasoning about where the time goes — not a configuration result. The authoritative figure
+        for a real network comes from the engineering tool that configures it, against the actual
+        device description files. Not modelled: per-device internal latency differences, PRes
+        timeout and error handling, hot-plugging, redundancy, SoA/ASnd scheduling policy across
+        cycles, cross-traffic, cable propagation (negligible at these distances), or any behaviour
+        specific to a particular manufacturer's implementation. The protocol supports up to 240
+        nodes in one network; the arithmetic here does not enforce any other vendor-specific limit.</p>
+
+        <p><strong>Why this exists.</strong> "How can I calculate the POWERLINK cycle time?" is a
+        standing question for anyone sizing a network, and the public answer is usually qualitative —
+        it depends on data volume, node count and polling frequency. That is true, but it is not a
+        number you can put in front of a customer. This is an attempt at the arithmetic, in the open,
+        with every assumption visible and arguable.</p>
+      </div>
+    </details>
+
+    <footer>
+      Independent personal project by <strong>Emre Aygün</strong> · MIT licence · built from the
+      publicly documented POWERLINK cycle structure and IEEE 802.3 frame timing. No proprietary or
+      vendor data is included. Not affiliated with, endorsed by, or representing any automation
+      manufacturer. First-order estimates for concept-stage reasoning only — verify against your
+      engineering tool before committing a design.
+    </footer>
+  </div>
+</div>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const BYTE_US = 0.08;      // 100 Mbit/s → 0.08 µs per byte
+const ETH_OH  = 38;        // preamble 7 + SFD 1 + MAC 14 + FCS 4 + IFG 12
+const MIN_PL  = 46;        // minimum Ethernet payload
+const PLK_HDR = 24;        // POWERLINK header inside the Ethernet payload
+
+const COLORS = { soc:'#60a5fa', iso:'#4ade80', soa:'#fbbf24', asnd:'#f87171', idle:'#374151' };
+
+/* Time on the wire for one frame carrying `data` bytes of process data. */
+const frameUs = data => (ETH_OH + Math.max(MIN_PL, PLK_HDR + data)) * BYTE_US;
+
+function budget(p){
+  const net = p.hopDelay * p.hops;                     // infrastructure delay per frame
+  const polled = p.nCont + Math.ceil(p.nMux / p.muxCycles);
+
+  const tSoC  = frameUs(0) + net;
+  const tPReq = frameUs(p.tx) + net;
+  const tPRes = frameUs(p.rx) + net + p.turn;
+  // Poll Response Chaining: no individual PReq per node, only the chained PRes.
+  const perNode = p.prc ? tPRes : tPReq + tPRes;
+  const tIso  = polled * perNode;
+  const tSoA  = frameUs(0) + net;
+  const tASnd = p.async > 0 ? frameUs(p.async) + net : 0;
+
+  const core = tSoC + tIso + tSoA + tASnd;
+  const total = core * (1 + p.margin / 100);
+  return { polled, net, tSoC, tIso, tSoA, tASnd, core, total,
+           idle: total - core, perNode, tPReq, tPRes };
+}
+
+/* ── Charts ───────────────────────────────────────────────────── */
+function hidpi(cv){
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, w, h);
+  return { c, w, h };
+}
+
+function stacked(cv, parts, total){
+  const { c, w, h } = hidpi(cv);
+  const bh = 30, y = 6;
+  let x = 0;
+  parts.forEach(p => {
+    const pw = (p.v / total) * w;
+    c.fillStyle = p.col;
+    c.fillRect(x, y, Math.max(pw, 0), bh);
+    if (pw > 36){
+      c.fillStyle = 'rgba(15,17,21,.85)';
+      c.font = '600 10px "IBM Plex Mono", monospace';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(Math.round(p.v / total * 100) + '%', x + pw / 2, y + bh / 2);
+    }
+    x += pw;
+  });
+  c.fillStyle = '#8b93a1';
+  c.font = '10px "IBM Plex Mono", monospace';
+  c.textAlign = 'left';  c.textBaseline = 'alphabetic';
+  c.fillText('0', 0, h - 4);
+  c.textAlign = 'right';
+  c.fillText(total.toFixed(1) + ' µs', w, h - 4);
+}
+
+function compare(cv, rows, target){
+  const { c, w, h } = hidpi(cv);
+  const PL = 128, PR = 58, top = 10;
+  const max = Math.max(...rows.map(r => r.v), target) * 1.12;
+  const bh = 22, gap = 12;
+
+  rows.forEach((r, i) => {
+    const y = top + i * (bh + gap);
+    const bw = (r.v / max) * (w - PL - PR);
+    c.fillStyle = '#8b93a1';
+    c.font = '11px "IBM Plex Sans", sans-serif';
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    c.fillText(r.label, PL - 10, y + bh / 2);
+    c.fillStyle = r.v <= target ? '#4ade80' : '#f87171';
+    c.fillRect(PL, y, bw, bh);
+    c.fillStyle = '#e8eaed';
+    c.font = '600 11px "IBM Plex Mono", monospace';
+    c.textAlign = 'left';
+    c.fillText(Math.round(r.v) + ' µs', PL + bw + 7, y + bh / 2);
+  });
+
+  // target line
+  const tx = PL + (target / max) * (w - PL - PR);
+  c.strokeStyle = '#60a5fa'; c.setLineDash([3, 3]); c.lineWidth = 1;
+  c.beginPath(); c.moveTo(tx, 2); c.lineTo(tx, top + rows.length * (bh + gap) - 6); c.stroke();
+  c.setLineDash([]);
+  c.fillStyle = '#60a5fa'; c.font = '9.5px "IBM Plex Mono", monospace';
+  c.textAlign = 'center';  c.textBaseline = 'alphabetic';
+  c.fillText('target', tx, h - 2);
+}
+
+/* ── Render ───────────────────────────────────────────────────── */
+const n = v => parseFloat(v) || 0;
+let summary = '';
+
+function render(){
+  const infraSel = $('infra').value;
+  $('customWrap').style.display = infraSel === 'custom' ? 'block' : 'none';
+  const hopDelay = infraSel === 'custom' ? n($('custom').value) : parseFloat(infraSel);
+
+  const p = {
+    nCont: Math.max(0, n($('nCont').value)),
+    nMux:  Math.max(0, n($('nMux').value)),
+    muxCycles: Math.max(1, n($('muxCycles').value)),
+    tx: n($('tx').value), rx: n($('rx').value),
+    prc: $('prc').checked,
+    hopDelay, hops: Math.max(0, n($('hops').value)),
+    turn: n($('turn').value),
+    async: n($('async').value),
+    margin: n($('margin').value)
+  };
+  const target = n($('target').value);
+  const b = budget(p);
+  const ok = b.total <= target;
+
+  // verdict
+  const head = ok
+    ? `${target} µs is achievable`
+    : `${target} µs is not achievable`;
+  const gapTxt = ok
+    ? `Minimum is ${b.total.toFixed(1)} µs — ${(target - b.total).toFixed(1)} µs of headroom.`
+    : `Minimum is ${b.total.toFixed(1)} µs — you are over by ${(b.total - target).toFixed(1)} µs.`;
+
+  // binding constraint
+  let advice;
+  const netShare = (b.net * (p.prc ? 1 : 2) * b.polled) / b.core;
+  if (!ok && netShare > 0.35){
+    advice = ` Infrastructure delay is the dominant term here (${Math.round(netShare * 100)}% of the cycle) — ` +
+             `reducing hops or moving to lower-latency devices will buy more than trimming data.`;
+  } else if (!ok && b.polled > 0 && (b.tPRes + b.tPReq) * b.polled / b.core > 0.6){
+    advice = ` The isochronous phase dominates. Multiplexing low-priority nodes or enabling ` +
+             `Poll Response Chaining are the levers with the most room.`;
+  } else if (!ok && b.tASnd / b.core > 0.25){
+    advice = ` The asynchronous reservation is eating a large share — consider a smaller ASnd frame.`;
+  } else {
+    advice = '';
+  }
+
+  $('verdict').className = 'verdict ' + (ok ? 'pass' : 'fail');
+  $('verdict').innerHTML =
+    `<div class="big">${head}</div><div class="msg">${gapTxt}${advice}</div>`;
+
+  const util = b.core / b.total * 100;
+  $('kpis').innerHTML = [
+    ['Min cycle', b.total.toFixed(1), 'µs'],
+    ['Polled / cycle', b.polled, 'CN'],
+    ['Per node', b.perNode.toFixed(2), 'µs'],
+    ['Net delay / frame', b.net.toFixed(1), 'µs'],
+    ['Bus utilisation', util.toFixed(0), '%']
+  ].map(([k, v, u]) =>
+    `<div class="kpi"><div class="k">${k}</div><div class="v">${v} <small>${u}</small></div></div>`
+  ).join('');
+
+  // breakdown
+  const parts = [
+    { label:'SoC',                 v:b.tSoC,  col:COLORS.soc  },
+    { label:'Isochronous phase',   v:b.tIso,  col:COLORS.iso  },
+    { label:'SoA',                 v:b.tSoA,  col:COLORS.soa  },
+    { label:'ASnd (async)',        v:b.tASnd, col:COLORS.asnd },
+    { label:'Idle / margin',       v:b.idle,  col:COLORS.idle }
+  ].filter(x => x.v > 0);
+
+  stacked($('bar'), parts, b.total);
+  $('brk').innerHTML =
+    `<tr><th>Phase</th><th>Time</th><th>Share</th></tr>` +
+    parts.map(x => `<tr><td><span class="sw" style="background:${x.col}"></span>${x.label}</td>
+      <td class="num">${x.v.toFixed(2)} µs</td>
+      <td class="num">${(x.v / b.total * 100).toFixed(1)}%</td></tr>`).join('') +
+    `<tr class="tot"><td>Minimum cycle</td><td class="num">${b.total.toFixed(2)} µs</td><td class="num">100%</td></tr>`;
+
+  // infrastructure comparison
+  const variants = [
+    { label:'Hub / repeater',      d:0.5 },
+    { label:'Cut-through switch',  d:5   },
+    { label:'Store-and-forward',   d:10  }
+  ].map(v => ({ label:v.label, v: budget({ ...p, hopDelay:v.d }).total }));
+  compare($('cmp'), variants, target);
+
+  const ratio = variants[2].v / variants[0].v;
+  $('cmpNote').innerHTML =
+    `Same network, same data, same node count — only the device in the signal path changes.
+     Going from hubs to store-and-forward switches multiplies the cycle by
+     <strong>${ratio.toFixed(1)}×</strong> here. Every frame crosses the infrastructure, so the
+     delay is paid ${p.prc ? '' : 'twice '}per node, ${p.hops} hop${p.hops === 1 ? '' : 's'} deep —
+     which is why a topology decision made for convenience can quietly cost more than any amount of
+     data tuning.`;
+
+  summary =
+`POWERLINK cycle budget
+Target             ${target} µs  →  ${ok ? 'ACHIEVABLE' : 'NOT ACHIEVABLE'}
+Minimum cycle      ${b.total.toFixed(1)} µs
+Nodes polled/cycle ${b.polled}  (${p.nCont} continuous + ${p.nMux} multiplexed over ${p.muxCycles})
+Process data       PReq ${p.tx} B · PRes ${p.rx} B${p.prc ? ' · Poll Response Chaining on' : ''}
+Infrastructure     ${hopDelay} µs × ${p.hops} hops = ${b.net.toFixed(1)} µs per frame
+Node turnaround    ${p.turn} µs (device-dependent, user-supplied)
+  SoC              ${b.tSoC.toFixed(2)} µs
+  Isochronous      ${b.tIso.toFixed(2)} µs
+  SoA              ${b.tSoA.toFixed(2)} µs
+  ASnd             ${b.tASnd.toFixed(2)} µs
+  Idle/margin      ${b.idle.toFixed(2)} µs
+Bus utilisation    ${util.toFixed(0)}%
+First-order estimate — verify against your engineering tool.`;
+}
+
+['target','nCont','nMux','muxCycles','tx','rx','hops','turn','async','margin','custom']
+  .forEach(id => $(id).addEventListener('input', render));
+$('infra').addEventListener('change', render);
+$('prc').addEventListener('change', render);
+window.addEventListener('resize', render);
+
+$('copy').addEventListener('click', async e => {
+  try { await navigator.clipboard.writeText(summary); e.target.textContent = 'Copied'; }
+  catch { e.target.textContent = 'Copy failed'; }
+  setTimeout(() => e.target.textContent = 'Copy budget', 1400);
+});
+
+$('reset').addEventListener('click', () => {
+  const d = {target:400, nCont:20, nMux:0, muxCycles:4, tx:16, rx:16,
+             hops:2, turn:1, async:300, margin:10, custom:2};
+  for (const k in d) $(k).value = d[k];
+  $('infra').value = '0.5'; $('prc').checked = false;
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
